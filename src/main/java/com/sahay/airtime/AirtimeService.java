@@ -80,10 +80,10 @@ public class AirtimeService {
 //                REQUEST_PASSWORD
 //        );
 
-        var id_1 = new QueryBalanceRecord.Id(SAFARICOM_ACCOUNT_NUMBER, SCHEMA_NAME);
-        var id_2 = new QueryBalanceRecord.Id(PIN_KEY, PIN_VALUE);
+        var id_1 = new QueryBalance.Id(SAFARICOM_ACCOUNT_NUMBER, SCHEMA_NAME);
+        var id_2 = new QueryBalance.Id(PIN_KEY, PIN_VALUE);
 
-        var balanceQueryRequest = new QueryBalanceRecord(BALANCE_REQUEST_TYPE, Arrays.asList(id_1, id_2), REQUEST_PASSWORD);
+        var balanceQueryRequest = new QueryBalance(BALANCE_REQUEST_TYPE, Arrays.asList(id_1, id_2), REQUEST_PASSWORD);
 
         log.info("AIRTIME BALANCE REQUEST : {}", balanceQueryRequest);
         // send http request
@@ -127,6 +127,7 @@ public class AirtimeService {
         return airtimeBalanceResponse;
 
     }
+
 
     public JSONObject rechargeAirtime(RechargeRequest request) {
 
@@ -187,7 +188,7 @@ public class AirtimeService {
 
         JSONObject airtimeRechargeResponse = http.sendRequest(requestBody);
 
-        Boolean status = true;
+        boolean status = true;
         String response = "000";
 
         log.info("AIRTIME PURCHASE RESPONSE : {}", airtimeRechargeResponse.toString());

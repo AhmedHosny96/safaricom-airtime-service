@@ -1,9 +1,5 @@
 package com.sahay.airtime;
 
-import org.json.JSONObject;
-
-import java.util.List;
-
 public record AirtimeBalanceResponse(
         String response,
         String responseDescription,
@@ -11,6 +7,5 @@ public record AirtimeBalanceResponse(
         String productName,
         String balance
 ) {
-
 
 }
