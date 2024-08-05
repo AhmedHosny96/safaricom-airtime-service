@@ -1,7 +1,16 @@
 package com.sahay.airtime;
 
-public record AirtimeCustomResponse(
-        String response,
-        String responseDescription
-) {
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class AirtimeCustomResponse {
+
+
+    private String response;
+    private String responseDescription;
 }

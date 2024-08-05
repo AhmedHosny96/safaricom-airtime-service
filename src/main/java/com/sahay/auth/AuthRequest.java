@@ -1,8 +1,14 @@
 package com.sahay.auth;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record AuthRequest(
-        String username,
-        String password
-) {
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class AuthRequest {
+
+    private String username;
+    private String password;
 }

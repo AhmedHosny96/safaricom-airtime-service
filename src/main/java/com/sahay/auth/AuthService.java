@@ -35,13 +35,13 @@ public class AuthService {
     private final Util util;
 
     public String getToken() {
-        var authRequest = new JSONObject();
+        JSONObject authRequest = new JSONObject();
 //        authRequest.put("username", "PRETUPS");
 //        authRequest.put("password", "MRyhsEPWzO8jDqaE0EAKnw==");
         authRequest.put("username", USERNAME);
         authRequest.put("password", PASSWORD);
 
-        var authBody = new RequestBuilder("POST");
+        RequestBuilder authBody = new RequestBuilder("POST");
         authBody
                 .addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON)
                 .addHeader("x-source-system", BANK_NAME)

@@ -1,11 +1,16 @@
 package com.sahay.airtime;
 
-public record AirtimeBalanceResponse(
-        String response,
-        String responseDescription,
-        String productCode,
-        String productName,
-        String balance
-) {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class AirtimeBalanceResponse {
+
+    private String response;
+    private String responseDescription;
+    private String productCode;
+    private String productName;
+    private String balance;
 
 }

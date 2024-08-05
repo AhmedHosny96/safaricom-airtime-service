@@ -19,7 +19,6 @@ public class AirtimeController {
     }
 
     // balance
-
     @GetMapping(value = "/balance")
     public ResponseEntity<?> getAirtimeBalance() throws JsonProcessingException {
         JSONObject airtimeBalance = airtimeService.getAirtimeBalance();
@@ -28,7 +27,7 @@ public class AirtimeController {
         JSONObject products = airtimeBalance.getJSONArray("products").getJSONObject(0);
 
 
-        var airtimeBalanceResponse = new AirtimeBalanceResponse(
+        AirtimeBalanceResponse airtimeBalanceResponse = new AirtimeBalanceResponse(
                 "000",
                 "successful",
                 products.getString("code"),
@@ -37,7 +36,6 @@ public class AirtimeController {
         );
         return new ResponseEntity<>(airtimeBalanceResponse, HttpStatus.OK);
     }
-
     // recharge airtime
 
     @PostMapping("/recharge")
@@ -46,11 +44,11 @@ public class AirtimeController {
 
         if (!rechargeResponse.getString("code").equals("1000")) {
 
-            var errorResponse = new AirtimeCustomResponse("999", rechargeResponse.getString("message"));
+            AirtimeCustomResponse errorResponse = new AirtimeCustomResponse("999", rechargeResponse.getString("message"));
             return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
 //
-        var customResponse = new AirtimeCustomResponse(
+        AirtimeCustomResponse customResponse = new AirtimeCustomResponse(
                 "000",
                 rechargeResponse.getString("message")
         );

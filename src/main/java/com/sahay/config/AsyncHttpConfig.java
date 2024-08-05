@@ -34,8 +34,8 @@ public class AsyncHttpConfig {
         clientConfig = new DefaultAsyncHttpClientConfig.Builder()
                 .setCompressionEnforced(true)
                 .setMaxConnections(100)
-                .setPooledConnectionIdleTimeout(20000)
-                .setRequestTimeout(20000)
+                .setPooledConnectionIdleTimeout(30000)
+                .setRequestTimeout(30000)
                 .setMaxConnectionsPerHost(5000)
                 .setSslContext(sc)
                 .build();

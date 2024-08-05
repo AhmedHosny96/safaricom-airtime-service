@@ -2,6 +2,7 @@ package com.sahay.airtime;
 
 import com.sahay.auth.AuthService;
 import com.sahay.config.AsyncHttpConfig;
+import com.sahay.config.SmsService;
 import com.sahay.config.Util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -53,6 +55,9 @@ public class AirtimeService {
     @Value("${safaricom.pin-value}")
     private String PIN_VALUE;
 
+    @Value("${rays.sms-success-template-id}")
+    private String SMS_TEMPLATE_ID;
+
     @Value("${safaricom.customer-reference-type}")
     private String CUSTOMER_REFERECE_TYPE;
     @Value("${safaricom.request-password}")
@@ -66,39 +71,28 @@ public class AirtimeService {
 
     private final Util util;
 
+    private final SmsService smsService;
+
     public JSONObject getAirtimeBalance() {
 
-//        var firstId = new IdRequest(
-//                SAFARICOM_ACCOUNT_NUMBER,
-//                SCHEMA_NAME
-//        );
-//        var secondId = new IdRequest(PIN_KEY, PIN_VALUE);
-//
-//        var balanceQueryRequest = new AirtimeRequest(
-//                BALANCE_REQUEST_TYPE,
-//                Arrays.asList(firstId, secondId),
-//                REQUEST_PASSWORD
-//        );
+        QueryBalance.Id id_1 = new QueryBalance.Id(SAFARICOM_ACCOUNT_NUMBER, SCHEMA_NAME);
+        QueryBalance.Id id_2 = new QueryBalance.Id(PIN_KEY, PIN_VALUE);
 
-        var id_1 = new QueryBalance.Id(SAFARICOM_ACCOUNT_NUMBER, SCHEMA_NAME);
-        var id_2 = new QueryBalance.Id(PIN_KEY, PIN_VALUE);
-
-        var balanceQueryRequest = new QueryBalance(BALANCE_REQUEST_TYPE, Arrays.asList(id_1, id_2), REQUEST_PASSWORD);
+        QueryBalance balanceQueryRequest = new QueryBalance(BALANCE_REQUEST_TYPE, Arrays.asList(id_1, id_2), REQUEST_PASSWORD);
 
         log.info("AIRTIME BALANCE REQUEST : {}", balanceQueryRequest);
-        // send http request
 
-        var request = new JSONObject();
+        JSONObject request = new JSONObject();
         request.put("type", BALANCE_REQUEST_TYPE);
 
-        var idArray = new JSONArray();
+        JSONArray idArray = new JSONArray();
 
-        var firstId = new JSONObject();
-
+        JSONObject firstId = new JSONObject();
         firstId.put("value", SAFARICOM_ACCOUNT_NUMBER);
         firstId.put("schemeName", SCHEMA_NAME);
         idArray.put(firstId);
-        var secondId = new JSONObject();
+
+        JSONObject secondId = new JSONObject();
         secondId.put("value", PIN_VALUE);
         secondId.put("schemeName", PIN_KEY);
         idArray.put(secondId);
@@ -110,7 +104,7 @@ public class AirtimeService {
 
         String TOKEN = authService.getToken();
 
-        var balanceRequest = new RequestBuilder("POST");
+        RequestBuilder balanceRequest = new RequestBuilder("POST");
         balanceRequest
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", String.format("Bearer %s", TOKEN))
@@ -121,19 +115,18 @@ public class AirtimeService {
                 .setBody(request.toString())
                 .build();
 
-        log.info("AIRTIME PAYLOAD : {}", balanceRequest);
+        log.info("AIRTIME BALANCE REQUEST : {}", request);
         JSONObject airtimeBalanceResponse = http.sendRequest(balanceRequest);
         log.info("AIRTIME BALANCE RESPONSE : {}", airtimeBalanceResponse);
         return airtimeBalanceResponse;
-
     }
 
 
     public JSONObject rechargeAirtime(RechargeRequest request) {
 
-        Optional<Airtime> airtimeByReference = airtimeRepository.findAirtimeByReference(request.transactionId());
+        Optional<Airtime> airtimeByReference = airtimeRepository.findAirtimeByReference(request.getTransactionId());
 
-        var customResponse = new JSONObject();
+        JSONObject customResponse = new JSONObject();
 
         if (airtimeByReference.isPresent()) {
             customResponse.put("response", "004");
@@ -145,15 +138,15 @@ public class AirtimeService {
 
         String TOKEN = authService.getToken();
 
-        var rechargeRequest = new JSONObject();
+        JSONObject rechargeRequest = new JSONObject();
 
         rechargeRequest.put("type", RECHARGE_REQUEST_TYPE);
-        var idArray = new JSONArray();
-        var firstId = new JSONObject();
+        JSONArray idArray = new JSONArray();
+        JSONObject firstId = new JSONObject();
         firstId.put("value", SAFARICOM_ACCOUNT_NUMBER);
         firstId.put("schemeName", SCHEMA_NAME);
         idArray.put(firstId);
-        var secondId = new JSONObject();
+        JSONObject secondId = new JSONObject();
         secondId.put("value", PIN_VALUE);
         secondId.put("schemeName", PIN_KEY);
         idArray.put(secondId);
@@ -161,21 +154,21 @@ public class AirtimeService {
         rechargeRequest.put("id", idArray);
         rechargeRequest.put("password", REQUEST_PASSWORD);
 
-        var payment = new JSONObject();
-        payment.put("customerReference", request.toAccount());
+        JSONObject payment = new JSONObject();
+        payment.put("customerReference", request.getToAccount());
         payment.put("customerReferenceType", CUSTOMER_REFERECE_TYPE);
         payment.put("date", LocalDate.now());
 
-        var paymentDetails = new JSONObject();
-        paymentDetails.put("transactionId", request.transactionId());
-        paymentDetails.put("amountPaid", request.amount());
+        JSONObject paymentDetails = new JSONObject();
+        paymentDetails.put("transactionId", "Rays-" + request.getTransactionId());
+        paymentDetails.put("amountPaid", request.getAmount());
 
         payment.put("paymentDetails", paymentDetails);
         rechargeRequest.put("payment", payment);
 
         log.info("AIRTIME PURCHASE REQUEST : {}", rechargeRequest);
 
-        var requestBody = new RequestBuilder("POST");
+        RequestBuilder requestBody = new RequestBuilder("POST");
         requestBody
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", String.format("Bearer %s", TOKEN))
@@ -188,6 +181,8 @@ public class AirtimeService {
 
         JSONObject airtimeRechargeResponse = http.sendRequest(requestBody);
 
+        JSONObject customerDeductionResponse = null;
+
         boolean status = true;
         String response = "000";
 
@@ -197,42 +192,53 @@ public class AirtimeService {
             status = false;
             response = "999";
         } else {
-            deductCustomer(request.toAccount(), request.fromAccount(), request.amount());
+            customerDeductionResponse = deductCustomer(request.getToAccount(), request.getFromAccount(), request.getAmount());
         }
-        var airtimeSaveRequest = new AirtimeSaveRequest(
-                request.toAccount(), Double.valueOf(request.amount()),
-                request.transactionId(), airtimeRechargeResponse.getString("TransactionID"),
+
+        if (customerDeductionResponse == null) {
+            customResponse.put("response", "999");
+            customResponse.put("responseDescription", airtimeRechargeResponse.getString("message"));
+
+            return customResponse;
+        }
+
+        Optional<String> safaricomAirtimeReference = util.extractRefNumber(airtimeRechargeResponse.getString("message"));
+
+        AirtimeSaveRequest airtimeSaveRequest = new AirtimeSaveRequest(
+                request.getToAccount(), Double.valueOf(request.getAmount()),
+                customerDeductionResponse.getString("transactionEntryId"), safaricomAirtimeReference.get(),
                 response, status, LocalDateTime.now(), rechargeRequest.toString(), airtimeRechargeResponse.toString()
         );
 
         saveAirtime(airtimeSaveRequest);
+
         return airtimeRechargeResponse;
     }
 
     public void saveAirtime(AirtimeSaveRequest airtimeSaveRequest) {
-        var airtime = new Airtime();
-        airtime.setAmount(airtimeSaveRequest.amount());
-        airtime.setPhoneNumber(airtimeSaveRequest.phoneNumber());
-        airtime.setReference(airtimeSaveRequest.reference());
-        airtime.setSafariReference(airtimeSaveRequest.safariReference());
-        airtime.setProcessedDate(airtimeSaveRequest.processedDate());
-        airtime.setResponse(airtimeSaveRequest.response());
-        airtime.setRequestPayload(airtimeSaveRequest.requestPayload());
-        airtime.setResponsePayload(airtimeSaveRequest.responsePayload());
-        airtime.setStatus(airtimeSaveRequest.status());
+        Airtime airtime = new Airtime();
+        airtime.setAmount(airtimeSaveRequest.getAmount());
+        airtime.setPhoneNumber(airtimeSaveRequest.getPhoneNumber());
+        airtime.setReference(airtimeSaveRequest.getReference());
+        airtime.setSafariReference(airtimeSaveRequest.getSafariReference());
+        airtime.setProcessedDate(airtimeSaveRequest.getProcessedDate());
+        airtime.setResponse(airtimeSaveRequest.getResponse());
+        airtime.setRequestPayload(airtimeSaveRequest.getRequestPayload());
+        airtime.setResponsePayload(airtimeSaveRequest.getResponsePayload());
+        airtime.setStatus(airtimeSaveRequest.getStatus());
         airtimeRepository.save(airtime);
     }
 
     public JSONObject deductCustomer(String toAccount, String fromAccount, String amount) {
 
-        var deductionRequest = new JSONObject();
+        JSONObject deductionRequest = new JSONObject();
         deductionRequest.put("username", "channel");
         deductionRequest.put("password", "$_@C0NNEKT");
         deductionRequest.put("messageType", "1200");
         deductionRequest.put("serviceCode", "270");
         deductionRequest.put("transactionType", "ATTC");
-        deductionRequest.put("msisdn", toAccount);
-        deductionRequest.put("transactionId", util.generateUniqueId());
+        deductionRequest.put("msisdn", fromAccount);
+        deductionRequest.put("transactionId", UUID.randomUUID());
         deductionRequest.put("fromAccount", fromAccount);
         deductionRequest.put("toAccount", toAccount);
         deductionRequest.put("amount", amount);
@@ -242,7 +248,7 @@ public class AirtimeService {
 
         log.info("CUSTOMER DEDUCTION REQUEST : {}", deductionRequest);
 
-        var deductionPayload = new RequestBuilder("POST");
+        RequestBuilder deductionPayload = new RequestBuilder("POST");
         deductionPayload
                 .setUrl(ESB_URL)
                 .addHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
@@ -255,6 +261,4 @@ public class AirtimeService {
 
         return deductionResponse;
     }
-
-
 }
